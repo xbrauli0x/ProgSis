@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.*;
 import java.util.*;
+
 import javax.swing.JToolBar;
 import javax.swing.JScrollPane;
 import javax.swing.JLabel;
@@ -30,9 +31,16 @@ public class Principal extends JFrame {
 		String linea="";
 	}
 
-	Vector<Error> elista=new Vector<Error>();
-	Vector<Linea> vfinal=new Vector<Linea>();
-	Vector<JTextField> vtxt=new Vector<JTextField>();
+	class Tabop
+	{
+		String ins="",modo="",codmaq="";
+		int noper=0,byc=0,byxc=0,sby=0;
+	}
+	
+	public Vector<Error> elista=new Vector<Error>();
+	public Vector<Linea> vfinal=new Vector<Linea>();
+	public Vector<JTextField> vtxt=new Vector<JTextField>();
+	public Vector<Tabop> vtab=new Vector<Tabop>();
 	
 	int contlinea=0, banend=0;
 	String cad="";
@@ -58,7 +66,7 @@ public class Principal extends JFrame {
 
 	public Principal() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 450, 300);
+		setBounds(100, 100, 525, 304);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -99,7 +107,7 @@ public class Principal extends JFrame {
 		
 		panel_3 = new JPanel();
 		scrollPane.setViewportView(panel_3);
-		panel_3.setLayout(new GridLayout(0, 4, 0, 0));
+		panel_3.setLayout(new GridLayout(0, 5, 0, 0));
 		
 		panel_1 = new JPanel();
 		panel.add(panel_1, BorderLayout.NORTH);
@@ -116,6 +124,39 @@ public class Principal extends JFrame {
 		
 		JLabel lblOperador = new JLabel("Operador");
 		panel_1.add(lblOperador);
+		
+		try
+		{
+			String linea="";
+			FileReader fr=new FileReader("TABOP.txt");
+			BufferedReader br=new BufferedReader(fr);
+			while(br.ready())
+			{
+				linea=br.readLine();
+				String arr[]=linea.split("\t");
+				if(arr.length>1)
+				{
+					Tabop t=new Tabop();
+					t.ins=arr[0];
+					t.modo=arr[1];
+					t.codmaq=arr[2];
+					String spl[]=arr[2].split(" ");
+					t.byc=spl.length;
+					t.byxc=Integer.parseInt(arr[3]);
+					t.sby=Integer.parseInt(arr[4]);
+					vtab.add(t);
+				}
+			}
+			
+			for(Tabop tx: vtab)
+				System.out.println(tx.ins+"\t"+tx.modo+"\t"+tx.codmaq+"\t"+tx.byc+"\t"+tx.byxc+"\t"+tx.sby);
+			fr.close();
+			br.close();
+		}
+		catch(IOException ioe)
+		{
+			JOptionPane.showMessageDialog(null, "Error con el archivo TABOP.TXT");
+		}
 	}
 	
 	public void Abrir()
@@ -189,9 +230,10 @@ public class Principal extends JFrame {
 					if(vfinal.size()>0)
 					{
 						panel_3.removeAll();
-						for(int i=0;i<4*vfinal.size();i++)
+						for(int i=0;i<5*vfinal.size();i++)
 						{
 							JTextField txt=new JTextField();
+							txt.setColumns(5);
 							vtxt.add(txt);
 						}
 						
@@ -203,17 +245,19 @@ public class Principal extends JFrame {
 							PrintWriter pw=new PrintWriter(fi);
 							for(Linea l: vfinal)
 							{
-								panel_3.add(vtxt.get(4*i));
-								panel_3.add(vtxt.get((4*i)+1));
-								panel_3.add(vtxt.get((4*i)+2));
-								panel_3.add(vtxt.get((4*i)+3));
+								panel_3.add(vtxt.get(5*i));
+								panel_3.add(vtxt.get((5*i)+1));
+								panel_3.add(vtxt.get((5*i)+2));
+								panel_3.add(vtxt.get((5*i)+3));
+								panel_3.add(vtxt.get((5*i)+4));
 								
-								vtxt.get(4*i).setText(l.linea);
-								vtxt.get((4*i)+1).setText(l.etq);
-								vtxt.get((4*i)+2).setText(l.codop);
-								vtxt.get((4*i)+3).setText(l.oper);
+								vtxt.get(5*i).setText(l.linea);
+								vtxt.get((5*i)+1).setText(l.etq);
+								vtxt.get((5*i)+2).setText(l.codop);
+								vtxt.get((5*i)+3).setText(l.oper);
+								vtxt.get((5*i)+4).setText(l.modos);
 								
-								pw.write(l.linea+"\t"+l.etq+"\t"+l.codop+"\t"+l.oper+"\r\n");
+								pw.write(l.linea+"\t"+l.etq+"\t"+l.codop+"\t"+l.oper+"\t"+l.modos+"\r\n");
 								
 								i++;
 							}
@@ -253,45 +297,147 @@ public class Principal extends JFrame {
 	
 	public void Analizar(int opc, Vector<String> tkn)
 	{
+		int banm=0,banopr=0;
+		
+		Linea l=new Linea(elista,contlinea);
 		switch(opc)
 		{
 			case 1:
 				if(cad.charAt(0)==' ' || cad.charAt(0)=='\t')
 				{
-					if(AnalizarCodop(tkn.get(0)))
+					if(l.AnalizarCodop(tkn.get(0)))
 					{
-						Linea l=new Linea();
-						l.codop=tkn.get(0);
-						l.linea=Integer.toString(contlinea);
-						vfinal.add(l);
+						
+						for(Tabop tb: vtab)
+						{
+							if(tb.ins.equalsIgnoreCase(tkn.get(0)))
+							{
+								if(tb.byxc>0)
+								{
+									banopr=1;
+									break;
+								}
+								
+								if(banm==0)
+								{
+									
+									l.codop=tkn.get(0);
+									l.linea=Integer.toString(contlinea);
+									l.modos=tb.modo;
+									banm=1;
+								}
+								else
+									l.modos+=", "+tb.modo;
+							}
+							else
+								if(!tb.ins.equalsIgnoreCase(tkn.get(0)) && banm==1)
+									break;
+							
+							
+						}
+						
+						if(banopr==1)
+						{
+							Errores(8,0,tkn.get(0));
+							break;
+						}
+						
+						if(banm==1)
+						{
+							vfinal.add(l);
+						}
+						else
+							Errores(6,0,tkn.get(0));
 					}
 				}
 				else
-					Errores(5,0,cad);
+					Errores(5,0,tkn.get(0));
 				break;
 				
 			case 2:
-				
 				if(cad.charAt(0)==' ' || cad.charAt(0)=='\t')
 				{
-					if(AnalizarCodop(tkn.get(0)))
+					if(l.AnalizarCodop(tkn.get(0)))
 					{
-						Linea l=new Linea();
-						l.codop=tkn.get(0);
-						l.oper=tkn.get(1);
-						l.linea=Integer.toString(contlinea);
-						vfinal.add(l);
+						for(Tabop tb: vtab)
+						{
+							if(tb.ins.equalsIgnoreCase(tkn.get(0)))
+							{
+								if(tb.byxc==0)
+									banopr=1;
+								
+								if(banm==0)
+								{
+									l.codop=tkn.get(0);
+									l.oper=tkn.get(1);
+									l.linea=Integer.toString(contlinea);
+									l.modos=tb.modo;
+									banm=1;
+								}
+								else
+									l.modos+=", "+tb.modo;
+								
+							}
+							else
+								if(!tb.ins.equalsIgnoreCase(tkn.get(0)) && banm==1)
+									break;
+							
+						}
+						if(banopr==1)
+						{
+							Errores(7,0,tkn.get(0));
+							break;
+						}
+						
+						
+						if(banm==1)
+							vfinal.add(l);
+						else
+							Errores(6,0,tkn.get(0));
 					}
+					
 				}
 				else
 				{
-					if(AnalizarEtq(tkn.get(0)) && AnalizarCodop(tkn.get(1)))
+					if(l.AnalizarEtq(tkn.get(0)) && l.AnalizarCodop(tkn.get(1)))
 					{
-						Linea l=new Linea();
-						l.codop=tkn.get(1);
-						l.etq=tkn.get(0);
-						l.linea=Integer.toString(contlinea);
-						vfinal.add(l);
+						for(Tabop tb: vtab)
+						{
+							if(tb.ins.equalsIgnoreCase(tkn.get(1)))
+							{
+								if(tb.byxc>=1)
+								{
+									banopr=1;
+									break;
+								}
+								if(banm==0)
+								{
+									l.codop=tkn.get(1);
+									l.etq=tkn.get(0);
+									l.linea=Integer.toString(contlinea);
+									l.modos=tb.modo;
+									banm=1;
+								}
+								else
+									l.modos+=", "+tb.modo;
+								
+							}
+							else
+								if(!tb.ins.equalsIgnoreCase(tkn.get(1)) && banm==1)
+									break;
+								
+						}
+						
+						if(banopr==1)
+						{
+							Errores(8,0,tkn.get(1));
+							break;
+						}
+						
+						if(banm==1)
+							vfinal.add(l);
+						else
+							Errores(6,0,tkn.get(1));
 					}
 				}
 				break;
@@ -299,15 +445,46 @@ public class Principal extends JFrame {
 			case 3:
 				if(cad.charAt(0)!=' ' & cad.charAt(0)!='\t')
 				{
-					if(AnalizarEtq(tkn.get(0)) && AnalizarCodop(tkn.get(1)))
+					if(l.AnalizarEtq(tkn.get(0)) && l.AnalizarCodop(tkn.get(1)))
 					{
-						Linea l=new Linea();
-						l.codop=tkn.get(1);
-						l.etq=tkn.get(0);
-						l.oper=tkn.get(2);
-						l.linea=Integer.toString(contlinea);
-						vfinal.add(l);
+						for(Tabop tb: vtab)
+						{
+							if(tb.ins.equals(tkn.get(1)))
+							{
+								if(tb.byxc==0)
+									banopr=1;
+								
+								if(banm==0)
+								{
+									l.codop=tkn.get(1);
+									l.etq=tkn.get(0);
+									l.oper=tkn.get(2);
+									l.linea=Integer.toString(contlinea);
+									l.modos=tb.modo;
+									banm=1;
+								}
+								else
+									l.modos+=", "+tb.modo;
+								
+							}
+							else
+								if(!tb.ins.equalsIgnoreCase(tkn.get(1)) && banm==1)
+									break;
+						}
+						
+						if(banopr==1)
+						{
+							Errores(7,0,tkn.get(1));
+							break;
+						}
+						
+						if(banm==1)
+							vfinal.add(l);
+						else
+							Errores(6,0,"");
+							
 					}
+					
 				}
 				else	
 					Errores(3,tkn.size(),"");
@@ -322,103 +499,34 @@ public class Principal extends JFrame {
 		
 	}
 	
-	public boolean AnalizarCodop(String codop)
-	{
-		int punto=0,ban=1,i=0;
-		if(Character.isLetter(codop.charAt(0)) && codop.length()<=5)
-		{
-			ban=0;
-			for(i=0;i<codop.length();i++)
-			{
-				if(codop.charAt(i)=='.')
-					punto++;
-				if((!Character.isLetter(codop.charAt(i)) && codop.charAt(i)!='.') || punto>1 )
-				{
-					ban=1;
-					break;
-				}
-			}
-		}
-		if(ban==1)
-		{
-			Errores(2,i,codop);
-			return false;
-		}
-		else
-			return true;
-		
-	}
-	
-	public boolean AnalizarEtq(String etq)
-	{
-		int ban=1,i=0;
-		if(Character.isLetter(etq.charAt(0)) && etq.length()<=8)
-		{
-			ban=0;
-			for(i=1;i<etq.length();i++)
-				if(!Character.isLetter(etq.charAt(i)) && !Character.isDigit(etq.charAt(i)) && etq.charAt(i)!='_')
-				{
-					ban=1;
-					break;
-				}
-		}
-		
-		if(ban==1)
-		{
-			Errores(1,i,etq);
-			return false;
-		}
-		else
-			return true;
-	}
-	
 	public void Errores(int opc,int pos,String cad)
 	{
 		Error e=new Error();
 		switch(opc)
 		{
-		    case 1:
-		    	if(cad.length()>8)
-		    	{
-		    		e.linea=Integer.toString(contlinea);
-			    	e.error="Etiqueta inválida: "+cad+". Supera el límite de caracteres válidos: 8.";
-			    	elista.add(e);
-		    	}
-		    	else
-		    	{
-		    		e.linea=Integer.toString(contlinea);
-			    	e.error="Etiqueta inválida: "+cad+". Cáracter inválido: \" "+cad.charAt(pos)+" \"";
-			    	elista.add(e);
-		    	}
-		    	break;
-		    case 2:
-		    	if(cad.length()>5)
-		    	{
-		    		e.linea=Integer.toString(contlinea);
-			    	e.error="Código de operación inválido: "+cad+". Supera el límite de caracteres válidos: 5.";
-			    	elista.add(e);
-		    	}
-		    	else
-		    	{
-		    		e.linea=Integer.toString(contlinea);
-			    	e.error="Código de operación inválido: "+cad+". Cáracter inválido: \" "+cad.charAt(pos)+" \"";
-			    	elista.add(e);
-		    	}
-		    	break;
-		    	
-		    case 3: 
-		    	e.linea=Integer.toString(contlinea);
-		    	e.error="Excede los 3 argumentos permitidos. Hay "+pos+" argumentos en la línea.";
-		    	elista.add(e);
-		    	break;
 		    case 4: 
-		    	e.linea="X";
-		    	e.error="Falta la directiva END.";
-		    	elista.add(e);
-		    	break;
+	    	    e.linea="X";
+	    	    e.error="Falta la directiva END";
+	    	    elista.add(e);
+	    	break;
 		    case 5: 
 		    	e.linea=Integer.toString(contlinea);
 		    	e.error="No es un código de operación válido: "+cad;
+		    	elista.add(e);
+		    	break;
+		    case 6: 
+		    	e.linea=Integer.toString(contlinea);
+		    	e.error="No coincide el CODOP: \" "+cad+" \" con el TABOP.";
+		    	elista.add(e);
+		    	break;
+		    case 7: 
+		    	e.linea=Integer.toString(contlinea);
+		    	e.error="Este modo de direccionamiento: \" "+cad+" \" no permite operandos.";
+		    	elista.add(e);
+		    	break;
+		    case 8: 
+		    	e.linea=Integer.toString(contlinea);
+		    	e.error="Este modo de direccionamiento: \" "+cad+" \" necesita operandos..";
 		    	elista.add(e);
 		    	break;
 		    	
